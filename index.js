@@ -12,6 +12,7 @@
 import express from 'express';
 import move from './moveLogic.js'
 import fs from "fs"
+import { generateCells, getNeighbors } from "./heatmap.js"
 import path from 'path';
 
 let samples = []
@@ -45,7 +46,10 @@ app.post("/start", (req, res) => {
 app.post("/move", (req, res) => {
 
   samples.push({ board: req.body.board, you: req.body.you })
-  res.send(move(req.body))
+  // res.send(move(req.body))
+  let board = generateCells(req.body)
+  let moves = getNeighbors(board, req.body.you.head.x, req.body.you.head.y)
+
 })
 
 //TODO: respond to POST requests on "/end", which signals the end of a game. Your response itself is ignored, 
