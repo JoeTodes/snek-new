@@ -4,6 +4,13 @@ let cellSize = 60
 let states;
 let current = 18
 let cells
+let showBlurredScores = false
+
+function toggleScore() {
+
+    showBlurredScores = !showBlurredScores
+    loop()
+}
 
 function preload() {
     states = loadJSON("samples.json")
@@ -12,7 +19,6 @@ function preload() {
 
 function setup() {
     states = Object.keys(states).map(index => states[index])
-    noLoop()
     createCanvas(cellSize * 11, cellSize * 11)
 }
 
@@ -21,6 +27,7 @@ function draw() {
     generateCells(states[current])
     drawBoard()
     text("hi", 100, 100)
+    noLoop()
 }
 
 function drawBoard() {
@@ -29,7 +36,7 @@ function drawBoard() {
 
     cells.forEach(row => {
         row.forEach(cell => {
-            let scoreColor = lerpColor(red, green, cell.score)
+            let scoreColor = lerpColor(red, green, showBlurredScores ? cell.blurredScore : cell.score)
             scoreColor.setAlpha(123)
             fill(scoreColor)
             if (cell.snake) {
@@ -47,7 +54,8 @@ function drawBoard() {
             }
             fill(0)
             strokeWeight(1)
-            text(cell.score, rectX + 5, rectY + 15)
+            text(showBlurredScores ? cell.blurredScore.toFixed(2) : cell.score.toFixed(2), rectX + 5, rectY + 15)
+
             fill(255)
 
         })
@@ -93,11 +101,20 @@ function generateCells(gameState) {
             calculateScore(cells, cell.x, cell.y)
         })
     })
+    blurScores()
 
     console.log(gameState);
     console.log(cells);
 
 
+}
+
+function getNeighbors(x, y) {
+    let left = cells[y][x - 1] ?? { wall: true }
+    let right = cells[y][x + 1] ?? { wall: true }
+    let up = y < cells.length - 1 ? (cells[y + 1][x]) : { wall: true }
+    let down = y > 0 ? (cells[y - 1][x]) : { wall: true }
+    return [up, right, down, left]
 }
 
 function calculateScore(cells, x, y) {
@@ -107,11 +124,8 @@ function calculateScore(cells, x, y) {
         return
     }
     //set base score based on safe neighbors
-    let left = cells[y][x - 1] ?? { wall: true }
-    let right = cells[y][x + 1] ?? { wall: true }
-    let up = y < cells.length - 1 ? (cells[y + 1][x]) : { wall: true }
-    let down = y > 0 ? (cells[y - 1][x]) : { wall: true }
-    let neighbors = [up, right, down, left]
+
+    let neighbors = getNeighbors(x, y)
 
     neighbors.forEach(space => {
         if (isSafe(space)) {
@@ -119,12 +133,27 @@ function calculateScore(cells, x, y) {
         }
     })
 
-    // console.log(cell.score);
 
+    //modulate base score based on factors
+    let worstNeighbor = neighbors.filter(space => space.snake && !space.snake.you).sort((a, b) => a.snake.position - b.snake.position)[0]
+    if (worstNeighbor) {
+        percentOfLength = (worstNeighbor.snake.position + 1) / worstNeighbor.snake.length
+        cell.score *= percentOfLength
+    }
 }
 
 function isSafe(cell) {
     if (cell.wall) return false
     if (cell.snake) return false
     return true
+}
+
+function blurScores() {
+    cells.forEach(row => {
+        row.forEach(cell => {
+            let neighbors = getNeighbors(cell.x, cell.y)
+            let avg = neighbors.filter(space => !space.wall).reduce((acc, cur, i, arr) => acc + cur.score / arr.length, 0)
+            cell.blurredScore = cell.score + (avg - cell.score) * 0.5
+        })
+    })
 }
