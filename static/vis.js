@@ -2,7 +2,7 @@
 
 let cellSize = 60
 let states;
-let current = 18
+let current = 15
 let cells
 let showBlurredScores = false
 
@@ -98,10 +98,11 @@ function generateCells(gameState) {
 
     cells.forEach(row => {
         row.forEach(cell => {
-            calculateScore(cells, cell.x, cell.y)
+            calculateScore(cells, cell.x, cell.y, gameState.you.health)
         })
     })
     blurScores()
+
 
     console.log(gameState);
     console.log(cells);
@@ -111,13 +112,17 @@ function generateCells(gameState) {
 
 function getNeighbors(x, y) {
     let left = cells[y][x - 1] ?? { wall: true }
+    left.dir = "left"
     let right = cells[y][x + 1] ?? { wall: true }
+    right.dir = "right"
     let up = y < cells.length - 1 ? (cells[y + 1][x]) : { wall: true }
+    up.dir = "up"
     let down = y > 0 ? (cells[y - 1][x]) : { wall: true }
+    down.dir = "down"
     return [up, right, down, left]
 }
 
-function calculateScore(cells, x, y) {
+function calculateScore(cells, x, y, hp) {
     let cell = cells[y][x]
     cell.score = 0
     if (cell.snake) {
@@ -132,12 +137,19 @@ function calculateScore(cells, x, y) {
             cell.score += 1 / 4
         }
     })
+    if (cell.score == 0.25) {
+        cell.score = 0.1
+    }
 
+    if (cell.food) {
+        let deadness = 100 - hp
+        cell.score *= (1 + (deadness / 100) * 0.5)
+    }
 
     //modulate base score based on factors
     let worstNeighbor = neighbors.filter(space => space.snake && !space.snake.you).sort((a, b) => a.snake.position - b.snake.position)[0]
     if (worstNeighbor) {
-        percentOfLength = (worstNeighbor.snake.position + 1) / worstNeighbor.snake.length
+        let percentOfLength = (worstNeighbor.snake.position + 1) / worstNeighbor.snake.length
         cell.score *= percentOfLength
     }
 }
@@ -152,8 +164,8 @@ function blurScores() {
     cells.forEach(row => {
         row.forEach(cell => {
             let neighbors = getNeighbors(cell.x, cell.y)
-            let avg = neighbors.filter(space => !space.wall).reduce((acc, cur, i, arr) => acc + cur.score / arr.length, 0)
-            cell.blurredScore = cell.score + (avg - cell.score) * 0.5
+            let avg = neighbors.filter(space => !space.wall && !space.snake && space.score < cell.score).reduce((acc, cur, i, arr) => acc + cur.score / arr.length, 0)
+            cell.blurredScore = avg ? cell.score + (avg - cell.score) * 0.5 : cell.score
         })
     })
 }

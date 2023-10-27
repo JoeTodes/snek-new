@@ -49,14 +49,14 @@ app.post("/move", (req, res) => {
   // res.send(move(req.body))
   let board = generateCells(req.body)
   let moves = getNeighbors(board, req.body.you.head.x, req.body.you.head.y)
-
+  res.send({ move: moves.filter(move => !move.wall).sort((a, b) => b.blurredScore - a.blurredScore)[0].dir })
 })
 
 //TODO: respond to POST requests on "/end", which signals the end of a game. Your response itself is ignored, 
 //      but must have status code "200" the request body will contain objects representing the game
 //      https://docs.battlesnake.com/api/requests/end
 app.post("/end", (req, res) => {
-  fs.writeFileSync("./static/samples.json", JSON.stringify(samples))
+  // fs.writeFileSync("./static/samples.json", JSON.stringify(samples))
   console.log("game over");
   res.send("ok")
 })
